@@ -8,6 +8,7 @@ import { destroyElement } from 'belter/src';
 import type { ThreeDomainSecureFlowType, MenuChoices } from '../types';
 import type { CreateOrder } from '../props';
 import { validatePaymentMethod, type ValidatePaymentMethodResponse, getSupplementalOrderInfo, deleteVault } from '../api';
+import { updateButtonClientConfig } from '../button/orders';
 import { TARGET_ELEMENT, BUYER_INTENT } from '../constants';
 import { getLogger } from '../lib';
 
@@ -132,12 +133,23 @@ function initVaultCapture({ props, components, payment, serviceData, config } : 
         });
     };
 
+    const updateConfig = ({ orderID }) => {
+        return updateButtonClientConfig({ orderID, fundingSource, inline: true });
+    };
+
+    const validatePM = ({ orderID }) => {
+        return updateConfig({ orderID })
+            .then(() => {
+                return validatePaymentMethod({ clientAccessToken, orderID, paymentMethodID, enableThreeDomainSecure, clientMetadataID, partnerAttributionID });
+            });
+    };
+
     const start = () => {
         return ZalgoPromise.try(() => {
             return createOrder();
         }).then(orderID => {
             return ZalgoPromise.hash({
-                validate:        validatePaymentMethod({ clientAccessToken, orderID, paymentMethodID, enableThreeDomainSecure, clientMetadataID, partnerAttributionID }),
+                validate:        validatePM({ orderID }),
                 requireShipping: shippingRequired(orderID)
             });
         }).then(({ validate, requireShipping }) => {
